@@ -3,28 +3,64 @@ from yt_dlp import YoutubeDL
 import os.path
 from os import path
 
-ydl_opts = {
-    'extract_flat': True,
-    'dump_single_json': True,
-    'outtmpl': 'C:/Users/henri/Documents/yt-dlp/%%(title)s.%%(ext)s'
-}
-
 PATH = "D:\Youtube\\{playlistTitle}"
+VIDEO_PATH = 'C:/Users/henri/Documents/Test/{VIDEO_TITLE}.{VIDEO_EXT}';
 URLS = ['https://www.youtube.com/playlist?list=PL_CXWO-cR7Cgz3Qy3s0fFijNKP-vbWydw']
 
 
-def checkPlaylistFolderExistence(object):
-    playlistTitle = object['title']
+def checkPlaylistFolderExistence(playlist):
+    playlistTitle = playlist['title']
     playlistFolder = eval(f"f'{PATH}'")
     print(path.exists(playlistFolder))
-     
+
+
+
+def format_selector(ctx):
+    """ Select the best video and the best audio that won't result in an mkv.
+    NOTE: This is just an example and does not handle all cases """
+
+    # formats are already sorted worst to best
+    formats = ctx.get('formats')[::-1]
+
+    # acodec='none' means there is no audio
+    best_video = next(f for f in formats
+                      if f['vcodec'] != 'none' and f['acodec'] == 'none')
+
+    # find compatible audio extension
+    audio_ext = {'mp4': 'm4a', 'webm': 'webm'}[best_video['ext']]
+    # vcodec='none' means there is no video
+    best_audio = next(f for f in formats if (
+        f['acodec'] != 'none' and f['vcodec'] == 'none' and f['ext'] == audio_ext))
+
+    # These are the minimum required fields for a merged format
+    yield {
+        'format_id': f'{best_video["format_id"]}+{best_audio["format_id"]}',
+        'ext': best_video['ext'],
+        'requested_formats': [best_video, best_audio],
+        # Must be + separated list of protocols
+        'protocol': f'{best_video["protocol"]}+{best_audio["protocol"]}'
+    }
+
+
+ydl_opts = {
+    'extract_flat': True,
+    'dump_single_json': True,
+    'format': format_selector,
+}
+
 
 with YoutubeDL(ydl_opts) as ydl:
         for URL in URLS:
-            object = ydl.extract_info(URL, download=False)
-            for jsn in object.get('entries'):
-                checkPlaylistFolderExistence(object)
-                videoUrl = jsn['url']
-                print(videoUrl)
-                ydl.download(videoUrl)
-                
+            playlist = ydl.extract_info(URL, download=False)
+            for jsn in playlist.get('entries'):
+                checkPlaylistFolderExistence(playlist)
+                VIDEO_URL = jsn['url']
+    
+                video = ydl.extract_info(VIDEO_URL, download=False)
+
+                VIDEO_TITLE = video['title'].replace('/','')
+                VIDEO_EXT = video['ext']
+
+                ydl_opts['outtmpl']['default'] = eval(f"f'{VIDEO_PATH}'")
+
+                ydl.download(VIDEO_URL)
