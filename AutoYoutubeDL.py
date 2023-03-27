@@ -1,15 +1,12 @@
+import os
+
 from yt_dlp import YoutubeDL
 from os import path
+from pathlib import Path
 
 PATH = "D:\Youtube\\{playlistTitle}"
 VIDEO_PATH = 'C:/Users/henri/Documents/Test/{VIDEO_TITLE}.{VIDEO_EXT}';
 URLS = ['https://www.youtube.com/playlist?list=PL_CXWO-cR7Cgz3Qy3s0fFijNKP-vbWydw']
-
-
-def checkPlaylistFolderExistence(playlist):
-    playlistTitle = playlist['title']
-    playlistFolder = eval(f"f'{PATH}'")
-    print(path.exists(playlistFolder))
 
 
 ydl_opts = {
@@ -22,20 +19,18 @@ with YoutubeDL(ydl_opts) as ydl:
         for URL in URLS:
             playlist = ydl.extract_info(URL, download=False)
             for jsn in playlist.get('entries'):
-                checkPlaylistFolderExistence(playlist)
+                playlistTitle = playlist['title']
                 VIDEO_URL = jsn['url']
-    
+
                 video = ydl.extract_info(VIDEO_URL, download=False)
 
-                string_with_ideographic_space = video['title']
-                string_with_regular_space = string_with_ideographic_space.replace("\u3000", "　")
-
-                playlistTitle = playlist['title']
-                playlistFolder = eval(f"f'{PATH}'")
-
-                print(path.exists(playlistFolder + "\\" + string_with_regular_space + "." + video['ext']))
-
                 VIDEO_TITLE = video['title']
-                
+                VIDEO_EXT = "." + video['ext']
 
+                playlistFolder = eval(f"f'{PATH}'")
+                
+                if VIDEO_TITLE.replace('/','⧸') + VIDEO_EXT in os.listdir(playlistFolder):
+                    print(VIDEO_TITLE)
+                else:
+                    print('not found' + VIDEO_TITLE)
    
