@@ -1,18 +1,19 @@
 import yt_dlp
 from yt_dlp import YoutubeDL
-import os.path
+import os
 from os import path
 
-PATH = "D:\Youtube\\{playlistTitle}"
-VIDEO_PATH = 'C:/Users/henri/Documents/Test/{VIDEO_TITLE}.{VIDEO_EXT}';
+# Parameterized paths for better portability
+DOWNLOAD_BASE_PATH = os.environ.get('YTDL_DOWNLOAD_PATH', r'D:\Youtube')
+VIDEO_PATH_TEMPLATE = os.environ.get('YTDL_VIDEO_PATH', r'C:/Users/henri/Documents/Test/{VIDEO_TITLE}.{VIDEO_EXT}')
 URLS = ['https://www.youtube.com/playlist?list=PL_CXWO-cR7Cgz3Qy3s0fFijNKP-vbWydw']
 
 
-def checkPlaylistFolderExistence(playlist):
-    playlistTitle = playlist['title']
-    playlistFolder = eval(f"f'{PATH}'")
-    print(path.exists(playlistFolder))
-
+def ensure_playlist_folder_exists(playlist_title):
+    playlist_folder = os.path.join(DOWNLOAD_BASE_PATH, playlist_title)
+    if not os.path.exists(playlist_folder):
+        os.makedirs(playlist_folder)
+    return playlist_folder
 
 
 def format_selector(ctx):
@@ -46,21 +47,26 @@ ydl_opts = {
     'extract_flat': True,
     'dump_single_json': True,
     'format': format_selector,
+    'outtmpl': {'default': None},  # Will be set per video
 }
 
-
 with YoutubeDL(ydl_opts) as ydl:
-        for URL in URLS:
-            playlist = ydl.extract_info(URL, download=False)
-            for jsn in playlist.get('entries'):
-                checkPlaylistFolderExistence(playlist)
-                VIDEO_URL = jsn['url']
-    
+    for URL in URLS:
+        playlist = ydl.extract_info(URL, download=False)
+        playlist_title = playlist['title'].replace('/', '_')
+        playlist_folder = ensure_playlist_folder_exists(playlist_title)
+        for jsn in playlist.get('entries'):
+            VIDEO_URL = jsn['url']
+            try:
                 video = ydl.extract_info(VIDEO_URL, download=False)
-
-                VIDEO_TITLE = video['title'].replace('/','')
-                VIDEO_EXT = video['ext']
-
-                ydl_opts['outtmpl']['default'] = eval(f"f'{VIDEO_PATH}'")
-
-                ydl.download(VIDEO_URL)
+            except Exception as e:
+                print(f"Failed to extract video info: {VIDEO_URL}\nError: {e}")
+                continue
+            VIDEO_TITLE = video['title'].replace('/', '_')
+            VIDEO_EXT = video['ext']
+            outtmpl = VIDEO_PATH_TEMPLATE.format(VIDEO_TITLE=VIDEO_TITLE, VIDEO_EXT=VIDEO_EXT)
+            ydl.params['outtmpl']['default'] = outtmpl
+            try:
+                ydl.download([VIDEO_URL])
+            except Exception as e:
+                print(f"Failed to download video: {VIDEO_TITLE}\nError: {e}")
